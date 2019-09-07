@@ -258,6 +258,7 @@ func (repo ProblemRepo) doUpdate(problemID string, userID string, input UpdatePr
 	prev.Title = input.Title
 	prev.Content = input.Content
 	prev.UpdatedAt = time.Now().Unix()
+	prev.Tags = input.Tags
 
 	return repo.doPut(problemID, prev, true)
 }
