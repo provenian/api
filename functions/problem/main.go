@@ -55,7 +55,7 @@ type Problem struct {
 	Writer      string        `json:"writer" dynamo:"writer"`
 	Files       LanguageFiles `json:"files" dynamo:"files"`
 	Languages   []string      `json:"languages" dynamo:"-"`
-	Tags        []string      `json:"tags" dynamo:"-"`
+	Tags        []string      `json:"tags" dynamo:"tags"`
 }
 
 func NewProblem(id string, title string, contentType string, content string, userID string, files LanguageFiles, tags []string) Problem {
