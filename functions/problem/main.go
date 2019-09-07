@@ -55,9 +55,10 @@ type Problem struct {
 	Writer      string        `json:"writer" dynamo:"writer"`
 	Files       LanguageFiles `json:"files" dynamo:"files"`
 	Languages   []string      `json:"languages" dynamo:"-"`
+	Tags        []string      `json:"tags" dynamo:"-"`
 }
 
-func NewProblem(id string, title string, contentType string, content string, userID string, files LanguageFiles) Problem {
+func NewProblem(id string, title string, contentType string, content string, userID string, files LanguageFiles, tags []string) Problem {
 	return Problem{
 		ID:          id,
 		Version:     "1.0",
@@ -69,6 +70,7 @@ func NewProblem(id string, title string, contentType string, content string, use
 		Writer:      userID,
 		Files:       files,
 		Languages:   files.ListLanguages(),
+		Tags:        tags,
 	}
 }
 
@@ -203,6 +205,7 @@ type CreateProblemInput struct {
 	ContentType string       `json:"content_type"`
 	Content     string       `json:"content"`
 	Attachments []Attachment `json:"attachments"`
+	Tags        []string     `json:"tags"`
 }
 
 // This is always "draft" mode
@@ -226,7 +229,7 @@ func (repo ProblemRepo) doCreate(userID string, input CreateProblemInput) error 
 		}
 	}
 
-	problem := NewProblem(problemID, input.Title, input.ContentType, input.Content, userID, files)
+	problem := NewProblem(problemID, input.Title, input.ContentType, input.Content, userID, files, input.Tags)
 
 	if err := repo.doPut(problemID, problem, true); err != nil {
 		return err
@@ -236,9 +239,10 @@ func (repo ProblemRepo) doCreate(userID string, input CreateProblemInput) error 
 }
 
 type UpdateProblemInput struct {
-	Title       string `json:"title"`
-	ContentType string `json:"content_type"`
-	Content     string `json:"content"`
+	Title       string   `json:"title"`
+	ContentType string   `json:"content_type"`
+	Content     string   `json:"content"`
+	Tags        []string `json:"tags"`
 }
 
 func (repo ProblemRepo) doUpdate(problemID string, userID string, input UpdateProblemInput) error {
