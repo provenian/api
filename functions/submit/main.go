@@ -29,15 +29,20 @@ type SubmitRepo struct {
 	s3service s3.S3
 }
 
-func (repo SubmitRepo) Create(submission model.Submission) (model.Submission, error) {
-	submission.ID = uuid.NewV4().String()
-	submission.CreatedAt = time.Now().Unix()
+func (repo SubmitRepo) Create(problemID string, userID string, code string, language string) (model.Submission, error) {
+	submission := model.Submission{
+		ID:        uuid.NewV4().String(),
+		CreatedAt: time.Now().Unix(),
+		ProblemID: problemID,
+		UserID:    userID,
+		Language:  language,
+	}
 
 	codeFilePath := submission.ProblemID + "/submissions/" + submission.ID
 	if _, err := repo.s3service.PutObject(&s3.PutObjectInput{
 		Bucket:       aws.String(storageBucketName),
 		Key:          aws.String(codeFilePath),
-		Body:         aws.ReadSeekCloser(strings.NewReader(submission.Code)),
+		Body:         aws.ReadSeekCloser(strings.NewReader(code)),
 		CacheControl: aws.String("public, max-age=86400"),
 	}); err != nil {
 		return model.Submission{}, err
@@ -113,8 +118,22 @@ func (queue JobQueue) Push(message string) error {
 
 // ---
 
-func doPost(submitRepo SubmitRepo, queue JobQueue, submissionInput model.Submission) (events.APIGatewayProxyResponse, error) {
-	submission, err := submitRepo.Create(submissionInput)
+type CreateInput struct {
+	Code     string `json:"code"`
+	Language string `json:"language"`
+}
+
+func doPost(submitRepo SubmitRepo, queue JobQueue, problemID string, userID string, input CreateInput) (events.APIGatewayProxyResponse, error) {
+	if len(input.Language) == 0 || len(input.Code) == 0 {
+		return events.APIGatewayProxyResponse{
+			StatusCode: 400,
+			Headers: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
+		}, nil
+	}
+
+	submission, err := submitRepo.Create(problemID, userID, input.Code, input.Language)
 	if err != nil {
 		panic(err)
 	}
@@ -178,11 +197,6 @@ func doList(submitRepo SubmitRepo, problemID string) (events.APIGatewayProxyResp
 	}, nil
 }
 
-type SubmitInput struct {
-	Language string `json:"language"`
-	Code     string `json:"code"`
-}
-
 func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	sess := session.Must(session.NewSession())
 
@@ -195,19 +209,12 @@ func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 	}
 
 	if event.HTTPMethod == "POST" {
-		var input SubmitInput
+		var input CreateInput
 		if err := json.Unmarshal([]byte(event.Body), &input); err != nil {
 			panic(err)
 		}
 
-		submission := model.Submission{
-			ProblemID: event.PathParameters["problemId"],
-			Code:      input.Code,
-			UserID:    event.RequestContext.Authorizer["sub"].(string),
-			Language:  input.Language,
-		}
-
-		return doPost(submitRepo, jobQueue, submission)
+		return doPost(submitRepo, jobQueue, event.PathParameters["problemId"], event.RequestContext.Authorizer["sub"].(string), input)
 	} else if problemID, ok := event.PathParameters["problemId"]; event.HTTPMethod == "GET" && ok {
 		return doList(submitRepo, problemID)
 	} else if submissionID, ok := event.PathParameters["submissionId"]; event.HTTPMethod == "GET" && ok {
