@@ -1,4 +1,4 @@
-module github.com/myuon/provenian/api
+module github.com/provenian/api
 
 go 1.12.9
 
