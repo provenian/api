@@ -37,14 +37,17 @@ func (bus *ResultBus) Send(message ResultMessage) error {
 }
 
 type ResultMessage struct {
-	SubmissionID string       `json:"id"`
+	SubmissionID string       `json:"submission_id"`
+	ProblemID    string       `json:"problem_id"`
 	UserID       string       `json:"user_id"`
+	Language     string       `json:"language"`
 	Result       model.Result `json:"result"`
 }
 
-func NewResultMessage(submissionID string, userID string, result model.Result) ResultMessage {
+func NewResultMessage(submissionID string, problemID string, userID string, result model.Result) ResultMessage {
 	return ResultMessage{
 		SubmissionID: submissionID,
+		ProblemID:    problemID,
 		UserID:       userID,
 		Result:       result,
 	}
